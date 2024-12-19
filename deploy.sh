@@ -8,9 +8,9 @@ fi
 
 tag=$1
 # 获取当前 AWS 账户的所有区域列表
-#regions=$(aws ec2 describe-regions --query "Regions[].RegionName" --output text)
+regions=$(aws ec2 describe-regions --query "Regions[].RegionName" --output text)
 #指定region
-regions='us-east-1 us-west-2'
+#regions='us-east-1 us-west-2'
 # 循环遍历每个区域
 for region in $regions; do
     echo "Deploying $tag to region: $region"
