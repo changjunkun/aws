@@ -24,4 +24,24 @@ for region in $regions; do
     echo ""
 done
 
-aws s3 ls |grep cdk |xarge aws s3 rm s3://$1 --recursive
+aws s3 ls | grep cdk | awk '{print $3}' | while read bucket_name; do
+    # 2. 删除存储桶中的所有内容，包括版本化对象
+    echo "Deleting contents of bucket: s3://$bucket_name"
+
+    # Delete all versions of objects in the bucket
+    aws s3api list-object-versions --bucket $bucket_name --query "Versions[].{Key:Key,VersionId:VersionId}" --output text | \
+    while read key version_id; do
+        aws s3api delete-object --bucket $bucket_name --key "$key" --version-id "$version_id"
+    done
+
+    # Delete all delete markers (if any)
+    aws s3api list-object-versions --bucket $bucket_name --query "DeleteMarkers[].{Key:Key,VersionId:VersionId}" --output text | \
+    while read key version_id; do
+        aws s3api delete-object --bucket $bucket_name --key "$key" --version-id "$version_id"
+    done
+
+    # 3. 强制删除存储桶
+    echo "Deleting bucket: s3://$bucket_name"
+    aws s3 rb s3://$bucket_name --force
+done
+
