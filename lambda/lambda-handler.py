@@ -1,6 +1,3 @@
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: MIT-0
-
 import boto3
 import os
 import json
@@ -32,6 +29,38 @@ def aws_ec2(event):
         volume_id = event['detail']['responseElements']['volumeId']
         arnList.append(generate_arn(volumeArnTemplate, event, volume_id))
     
+    return arnList
+
+def aws_vpc(event):
+    arnList = []
+    if event['detail']['eventName'] == 'CreateVpc':
+        print("Tagging for new VPC...")
+        vpc_id = event['detail']['responseElements']['vpc']['vpcId']
+        arnList.append(generate_arn('arn:aws:ec2:@region@:@account@:vpc/@resourceId@', event, vpc_id))
+    return arnList
+
+def aws_subnet(event):
+    arnList = []
+    if event['detail']['eventName'] == 'CreateSubnet':
+        print("Tagging for new Subnet...")
+        subnet_id = event['detail']['responseElements']['subnet']['subnetId']
+        arnList.append(generate_arn('arn:aws:ec2:@region@:@account@:subnet/@resourceId@', event, subnet_id))
+    return arnList
+
+def aws_nat_gateway(event):
+    arnList = []
+    if event['detail']['eventName'] == 'CreateNatGateway':
+        print("Tagging for new NAT Gateway...")
+        nat_gateway_id = event['detail']['responseElements']['natGateway']['natGatewayId']
+        arnList.append(generate_arn('arn:aws:ec2:@region@:@account@:natGateway/@resourceId@', event, nat_gateway_id))
+    return arnList
+
+def aws_elasticip(event):
+    arnList = []
+    if event['detail']['eventName'] == 'AllocateAddress':
+        print("Tagging for new Elastic IP...")
+        allocation_id = event['detail']['responseElements']['allocationId']
+        arnList.append(generate_arn('arn:aws:ec2:@region@:@account@:elastic-ip/@resourceId@', event, allocation_id))
     return arnList
 
 def aws_elasticloadbalancing(event):
