@@ -5,269 +5,157 @@ import boto3
 import os
 import json
 
+def generate_arn(template, event, resource_id):
+    """ Helper function to generate ARN string. """
+    account = event['account']
+    region = event['region']
+    return template.replace('@region@', region).replace('@account@', account).replace('@resourceId@', resource_id)
+
 def aws_ec2(event):
     arnList = []
-    _account = event['account']
-    _region = event['region']
     ec2ArnTemplate = 'arn:aws:ec2:@region@:@account@:instance/@instanceId@'
     volumeArnTemplate = 'arn:aws:ec2:@region@:@account@:volume/@volumeId@'
-    ec2_resource = boto3.resource('ec2')
-    if event['detail']['eventName'] == 'RunInstances':
-        print("tagging for new EC2...")
-        for item in event['detail']['responseElements']['instancesSet']['items']:
-            _instanceId = item['instanceId']
-            arnList.append(ec2ArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@instanceId@', _instanceId))
-
-            _instance = ec2_resource.Instance(_instanceId)
-            for volume in _instance.volumes.all():
-                arnList.append(volumeArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@volumeId@', volume.id))
-
-    elif event['detail']['eventName'] == 'CreateVolume':
-        print("tagging for new EBS...")
-        _volumeId = event['detail']['responseElements']['volumeId']
-        arnList.append(volumeArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@volumeId@', _volumeId))
-        
-    elif event['detail']['eventName'] == 'CreateInternetGateway':
-        print("tagging for new IGW...")
-        
-    elif event['detail']['eventName'] == 'CreateNatGateway':
-        print("tagging for new Nat Gateway...")
-        
-    elif event['detail']['eventName'] == 'AllocateAddress':
-        print("tagging for new EIP...")
-        arnList.append(event['detail']['responseElements']['allocationId'])
-        
-    elif event['detail']['eventName'] == 'CreateVpcEndpoint':
-        print("tagging for new VPC Endpoint...")
-        
-    elif event['detail']['eventName'] == 'CreateTransitGateway':
-        print("tagging for new Transit Gateway...")
-
-    return arnList
     
+    if event['detail']['eventName'] == 'RunInstances':
+        print("Tagging for new EC2...")
+        for item in event['detail']['responseElements']['instancesSet']['items']:
+            instance_id = item['instanceId']
+            arnList.append(generate_arn(ec2ArnTemplate, event, instance_id))
+            
+            ec2_resource = boto3.resource('ec2')
+            instance = ec2_resource.Instance(instance_id)
+            for volume in instance.volumes.all():
+                arnList.append(generate_arn(volumeArnTemplate, event, volume.id))
+    
+    elif event['detail']['eventName'] == 'CreateVolume':
+        print("Tagging for new EBS volume...")
+        volume_id = event['detail']['responseElements']['volumeId']
+        arnList.append(generate_arn(volumeArnTemplate, event, volume_id))
+    
+    return arnList
+
 def aws_elasticloadbalancing(event):
     arnList = []
     if event['detail']['eventName'] == 'CreateLoadBalancer':
-        print("tagging for new LoadBalancer...")
-        lbs = event['detail']['responseElements']
-        for lb in lbs['loadBalancers']:
+        print("Tagging for new LoadBalancer...")
+        for lb in event['detail']['responseElements']['loadBalancers']:
             arnList.append(lb['loadBalancerArn'])
-        return arnList
+    return arnList
 
 def aws_rds(event):
     arnList = []
     if event['detail']['eventName'] == 'CreateDBInstance':
-        print("tagging for new RDS...")
-        #db_instance_id = event['detail']['requestParameters']['dBInstanceIdentifier']
-        #waiter = boto3.client('rds').get_waiter('db_instance_available')
-        #waiter.wait(
-        #    DBInstanceIdentifier = db_instance_id
-        #)
+        print("Tagging for new RDS instance...")
         arnList.append(event['detail']['responseElements']['dBInstanceArn'])
-        return arnList
+    return arnList
 
 def aws_s3(event):
     arnList = []
     if event['detail']['eventName'] == 'CreateBucket':
-        print("tagging for new S3...")
-        _bkcuetName = event['detail']['requestParameters']['bucketName']
-        arnList.append('arn:aws:s3:::' + _bkcuetName)
-        return arnList
-        
+        print("Tagging for new S3 bucket...")
+        bucket_name = event['detail']['requestParameters']['bucketName']
+        arnList.append(f'arn:aws:s3:::{bucket_name}')
+    return arnList
+
 def aws_lambda(event):
     arnList = []
-    _exist1 = event['detail']['responseElements']
-    _exist2 = event['detail']['eventName'] == 'CreateFunction20150331'
-    if  _exist1!= None and _exist2:
-        function_name = event['detail']['responseElements']['functionName']
-        print('Functin name is :', function_name)
-        arnList.append(event['detail']['responseElements']['functionArn'])
-        return arnList
+    if event['detail']['eventName'] == 'CreateFunction20150331':
+        print("Tagging for new Lambda function...")
+        function_arn = event['detail']['responseElements']['functionArn']
+        arnList.append(function_arn)
+    return arnList
 
 def aws_dynamodb(event):
     arnList = []
     if event['detail']['eventName'] == 'CreateTable':
-        table_name = event['detail']['responseElements']['tableDescription']['tableName']
-        waiter = boto3.client('dynamodb').get_waiter('table_exists')
-        waiter.wait(
-            TableName=table_name,
-            WaiterConfig={
-                'Delay': 123,
-                'MaxAttempts': 123
-            }
-        )
-        arnList.append(event['detail']['responseElements']['tableDescription']['tableArn'])
-        return arnList
-        
+        print("Tagging for new DynamoDB table...")
+        table_arn = event['detail']['responseElements']['tableDescription']['tableArn']
+        arnList.append(table_arn)
+    return arnList
+
 def aws_kms(event):
     arnList = []
     if event['detail']['eventName'] == 'CreateKey':
+        print("Tagging for new KMS key...")
         arnList.append(event['detail']['responseElements']['keyMetadata']['arn'])
-        return arnList
+    return arnList
 
 def aws_sns(event):
     arnList = []
-    _account = event['account']
-    _region = event['region']
-    snsArnTemplate = 'arn:aws:sns:@region@:@account@:@topicName@'
     if event['detail']['eventName'] == 'CreateTopic':
-        print("tagging for new SNS...")
-        _topicName = event['detail']['requestParameters']['name']
-        arnList.append(snsArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@topicName@', _topicName))
-        return arnList
-        
+        print("Tagging for new SNS topic...")
+        topic_name = event['detail']['requestParameters']['name']
+        arnList.append(generate_arn('arn:aws:sns:@region@:@account@:@topicName@', event, topic_name))
+    return arnList
+
 def aws_sqs(event):
     arnList = []
-    _account = event['account']
-    _region = event['region']
-    sqsArnTemplate = 'arn:aws:sqs:@region@:@account@:@queueName@'
     if event['detail']['eventName'] == 'CreateQueue':
-        print("tagging for new SQS...")
-        _queueName = event['detail']['requestParameters']['queueName']
-        arnList.append(sqsArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@queueName@', _queueName))
-        return arnList
-        
+        print("Tagging for new SQS queue...")
+        queue_name = event['detail']['requestParameters']['queueName']
+        arnList.append(generate_arn('arn:aws:sqs:@region@:@account@:@queueName@', event, queue_name))
+    return arnList
+
 def aws_elasticfilesystem(event):
     arnList = []
-    _account = event['account']
-    _region = event['region']
-    efsArnTemplate = 'arn:aws:elasticfilesystem:@region@:@account@:file-system/@fileSystemId@'
     if event['detail']['eventName'] == 'CreateMountTarget':
-        print("tagging for new efs...")
-        _efsId = event['detail']['responseElements']['fileSystemId']
-        arnList.append(efsArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@fileSystemId@', _efsId))
-        return arnList
-        
-def aws_es(event):
-    arnList = []
-    if event['detail']['eventName'] == 'CreateDomain':
-        print("tagging for new open search...")
-        arnList.append(event['detail']['responseElements']['domainStatus']['aRN'])
-        return arnList
-
-def aws_gamelift(event):
-    arnList = []
-    if event['detail']['eventName'] == 'CreateFleet':
-        print("tagging for new game lift...")
-        arnList.append(event['detail']['responseElements']['fleetAttributes']['fleetArn'])
-        return arnList
-
-def aws_elasticache(event):
-    arnList = []
-    _account = event['account']
-    _region = event['region']
-    ecArnTemplate = 'arn:aws:elasticache:@region@:@account@:cluster:@ecId@'
-
-    if event['detail']['eventName'] == 'CreateReplicationGroup' or event['detail']['eventName'] == 'ModifyReplicationGroupShardConfiguration':
-        print("tagging for new ElastiCache cluster...")
-        _replicationGroupId = event['detail']['requestParameters']['replicationGroupId']
-        waiter = boto3.client('elasticache').get_waiter('replication_group_available')
-        waiter.wait(
-            ReplicationGroupId = _replicationGroupId,
-            WaiterConfig={
-                'Delay': 123,
-                'MaxAttempts': 123
-            }
-        )
-        _clusters = event['detail']['responseElements']['memberClusters']
-        for _ec in _clusters:
-            arnList.append(ecArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@ecId@', _ec))
-
-    elif event['detail']['eventName'] == 'CreateCacheCluster':
-        print("tagging for new ElastiCache node...")
-        _cacheClusterId = event['detail']['responseElements']['cacheClusterId']
-        waiter = boto3.client('elasticache').get_waiter('cache_cluster_available')
-        waiter.wait(
-            CacheClusterId = _cacheClusterId,
-            WaiterConfig={
-                'Delay': 123,
-                'MaxAttempts': 123
-            }
-        )
-        arnList.append(event['detail']['responseElements']['aRN'])
-
+        print("Tagging for new EFS mount target...")
+        file_system_id = event['detail']['responseElements']['fileSystemId']
+        arnList.append(generate_arn('arn:aws:elasticfilesystem:@region@:@account@:file-system/@fileSystemId@', event, file_system_id))
     return arnList
+
 def aws_route53(event):
     arnList = []
-    _account = event['account']
-    _region = event['region']
-    route53ArnTemplate = 'arn:aws:route53:@region@:@account@:@hostedZoneId@'
-                        
     if event['detail']['eventName'] == 'CreateHostedZone':
-       print("Tagging for new Route 53 hosted zone...")
-       _hostedZoneId = event['detail']['responseElements']['hostedZone']['Id'].split('/')[-1]  # Extract hosted zone ID
-       arnList.append(route53ArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@hostedZoneId@', _hostedZoneId))
+        print("Tagging for new Route 53 hosted zone...")
+        hosted_zone_id = event['detail']['responseElements']['hostedZone']['Id'].split('/')[-1]
+        arnList.append(generate_arn('arn:aws:route53:@region@:@account@:@hostedZoneId@', event, hosted_zone_id))
     return arnList
 
 def aws_msk(event):
     arnList = []
-    _account = event['account']
-    _region = event['region']
-    mskArnTemplate = 'arn:aws:kafka:@region@:@account@:@clusterName@'
-                                                                                    
     if event['detail']['eventName'] == 'CreateCluster':
-       print("Tagging for new MSK cluster...")
-       _clusterName = event['detail']['responseElements']['clusterArn'].split(':')[-1]  # Extract the cluster name from ARN
-       arnList.append(mskArnTemplate.replace('@region@', _region).replace('@account@', _account).replace('@clusterName@', _clusterName))
+        print("Tagging for new MSK cluster...")
+        cluster_name = event['detail']['responseElements']['clusterArn'].split(':')[-1]
+        arnList.append(generate_arn('arn:aws:kafka:@region@:@account@:@clusterName@', event, cluster_name))
     return arnList
-    
+
 def get_identity(event):
-    print("getting user Identity...")
-    _userId = event['detail']['userIdentity']['arn'].split('/')[-1]
+    print("Getting user identity...")
+    user_id = event['detail']['userIdentity']['arn'].split('/')[-1]
     
     if event['detail']['userIdentity']['type'] == 'AssumedRole':
-        _roleId = event['detail']['userIdentity']['arn'].split('/')[-2]
-        return _userId, _roleId
-    return _userId
+        role_id = event['detail']['userIdentity']['arn'].split('/')[-2]
+        return user_id, role_id
+    return user_id, None
 
 def main(event, context):
-    print(f"input event is: {event}")
-    print("new source is ", event['source'])
-    _method = event['source'].replace('.', "_")
+    print(f"Input event: {event}")
+    print("Event source:", event['source'])
+    method = event['source'].replace('.', "_")
 
-    resARNs = globals()[_method](event)
-    print("resource arn is: ", resARNs)
+    res_arns = globals()[method](event)
+    print("Resource ARNs:", res_arns)
 
-    _res_tags =  json.loads(os.environ['tags'])
-    _identity_recording = os.environ['identityRecording']
+    tags = json.loads(os.environ['tags'])
+    identity_recording = os.environ['identityRecording']
 
-    if _identity_recording == 'true':
-        if event['detail']['userIdentity']['type'] == 'AssumedRole':
-            _userId, _roleId = get_identity(event)
-            _res_tags['roleId'] = _roleId
-        else:
-            _userId = get_identity(event)
-        
-        _res_tags['userId'] = _userId
-    
-    print(_res_tags)
+    if identity_recording == 'true':
+        user_id, role_id = get_identity(event)
+        if role_id:
+            tags['roleId'] = role_id
+        tags['userId'] = user_id
 
-    # GameLift
-    if _method == 'aws_gamelift':
-        client = boto3.client('gamelift')
-        tags = [{'Key': key, 'Value': value} for key, value in _res_tags.items()]
-        for arn in resARNs:
-            response = client.tag_resource(
-                ResourceARN=arn,
-                Tags=tags
-            )
-    # DocumentDB
-    elif _method == 'aws_rds' and event['detail']['responseElements']['engine'] and event['detail']['responseElements']['engine'] == 'docdb':
-        client = boto3.client('docdb')
-        tags = [{'Key': key, 'Value': value} for key, value in _res_tags.items()]
-        for arn in resARNs:
-            response = client.add_tags_to_resource(
-                ResourceName=arn,
-                Tags=tags
-            )
+    print("Tags to apply:", tags)
 
-    else:
-        boto3.client('resourcegroupstaggingapi').tag_resources(
-            ResourceARNList=resARNs,
-            Tags=_res_tags
+    client = boto3.client('resourcegroupstaggingapi')
+    for arn in res_arns:
+        response = client.tag_resources(
+            ResourceARNList=[arn],
+            Tags=tags
         )
 
     return {
         'statusCode': 200,
-        'body': json.dumps('Finished tagging with ' + event['source'])
+        'body': json.dumps('Finished tagging resources')
     }
