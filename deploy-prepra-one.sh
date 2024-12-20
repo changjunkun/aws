@@ -13,3 +13,6 @@ sudo npm install -g aws-cdk
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+#若是部署某几个区域
+
+./deploy-one.sh $MAP
