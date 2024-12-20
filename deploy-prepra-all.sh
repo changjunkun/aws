@@ -16,7 +16,8 @@ echo "Received parameter: $MAP"
 echo "Deploying with MAP=$MAP"
 
 # git clone https://github.com/changjunkun/aws.git
-cd /root/cjk/aws
+#进入部署工具目录下
+#cd /root/aws
 
 # 升级pip，npm版本为 pip:24.3.1  npm：11.0.0
 /root/.venv/bin/python3 -m pip install --upgrade pip
