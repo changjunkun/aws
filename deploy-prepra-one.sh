@@ -34,5 +34,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 若是部署某AWS所有打开的区域
+chmod +x *.sh
 ./deploy-one.sh $MAP
 
