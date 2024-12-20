@@ -29,7 +29,7 @@ sudo npm install -g aws-cdk
 
 python3 -m venv .venv
 source .venv/bin/activate
-/root/.venv/bin/python3 -m pip install --upgrade pip
+/root/aws/.venv/bin/python3 -m pip install --upgrade pip
 pip --version
 
 pip install -r requirements.txt
