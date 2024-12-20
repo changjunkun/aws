@@ -19,8 +19,6 @@ echo "Deploying with MAP=$MAP"
 #cd /root/aws
 
 # 升级pip，npm版本为 pip:24.3.1  npm：11.0.0
-/root/.venv/bin/python3 -m pip install --upgrade pip
-pip --version
 
 npm install -g npm@11.0.0 --force
 # 检查npm是否升级到11.0.0版本
@@ -31,6 +29,9 @@ sudo npm install -g aws-cdk
 
 python3 -m venv .venv
 source .venv/bin/activate
+/root/.venv/bin/python3 -m pip install --upgrade pip
+pip --version
+
 pip install -r requirements.txt
 
 # 若是部署某AWS所有打开的区域
