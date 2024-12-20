@@ -22,6 +22,7 @@ class AutoTagResourceStack(Stack):
         #     self, "AutoTagResourceQueue",
         #     visibility_timeout=Duration.seconds(300),
         # )
+
         # set parameters
         tags = CfnParameter(self, "tags", type="String", description="tag name and value with json format.")
         identityRecording = CfnParameter(self, "identityRecording", type="String", default="false", description="Defines if the tool records the requester identity as a tag.")
@@ -31,41 +32,75 @@ class AutoTagResourceStack(Stack):
             role_name = f"resource-tagging-role-{Aws.REGION}",
             assumed_by=_iam.ServicePrincipal("lambda.amazonaws.com"))
 
-        #lambda_role.add_managed_policy(_iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole"))
+        # Add permissions for tagging various AWS resources
         lambda_role.add_to_policy(_iam.PolicyStatement(
             effect=_iam.Effect.ALLOW,
             resources=["*"],
-            actions=["dynamodb:TagResource", "dynamodb:DescribeTable", "lambda:TagResource", "lambda:ListTags", "s3:GetBucketTagging", "s3:PutBucketTagging", 
-            "ec2:CreateTags", "ec2:DescribeNatGateways", "ec2:DescribeInternetGateways", "ec2:DescribeVolumes", "rds:AddTagsToResource", "rds:DescribeDBInstances",
-            "sns:TagResource", "sqs:ListQueueTags", "sqs:TagQueue", "es:AddTags", "kms:ListResourceTags", "kms:TagResource", "elasticfilesystem:TagResource", 
-            "elasticfilesystem:CreateTags", "elasticfilesystem:DescribeTags", "elasticloadbalancing:AddTags","tag:getResources", "tag:getTagKeys", "tag:getTagValues", "tag:TagResources", "tag:UntagResources", "cloudformation:DescribeStacks", 
-                     "cloudformation:ListStackResources", "elasticache:DescribeReplicationGroups", "elasticache:DescribeCacheClusters", "elasticache:AddTagsToResource","resource-groups:*","GameLift:TagResource","kafka:TagResource","kafka:UntagResource","docdb:ListTagsForResource","docdb:AddTagsToResource","docdb:RemoveTagsFromResource", "workspaces:TagResource","workspaces:UntagResource","workspaces:DescribeWorkspaces","workspaces:DescribeTags","route53:ListTagsForResource","route53:TagResource","route53:UntagResource"]
+            actions=[
+                "dynamodb:TagResource", "dynamodb:DescribeTable",
+                "lambda:TagResource", "lambda:ListTags",
+                "s3:GetBucketTagging", "s3:PutBucketTagging", 
+                "ec2:CreateTags", "ec2:DescribeNatGateways", "ec2:DescribeInternetGateways", 
+                "ec2:DescribeVolumes", "ec2:DescribeSubnets", "ec2:DescribeVpcs", "ec2:DescribeRouteTables", 
+                "rds:AddTagsToResource", "rds:DescribeDBInstances",
+                "sns:TagResource", "sqs:ListQueueTags", "sqs:TagQueue", 
+                "es:AddTags", "kms:ListResourceTags", "kms:TagResource", 
+                "elasticfilesystem:TagResource", "elasticfilesystem:CreateTags", 
+                "elasticfilesystem:DescribeTags", "elasticloadbalancing:AddTags",
+                "tag:getResources", "tag:getTagKeys", "tag:getTagValues", 
+                "tag:TagResources", "tag:UntagResources", 
+                "cloudformation:DescribeStacks", "cloudformation:ListStackResources", 
+                "elasticache:DescribeReplicationGroups", "elasticache:DescribeCacheClusters", 
+                "elasticache:AddTagsToResource", "resource-groups:*", 
+                "GameLift:TagResource", "kafka:TagResource", "kafka:UntagResource",
+                "docdb:ListTagsForResource", "docdb:AddTagsToResource", "docdb:RemoveTagsFromResource", 
+                "workspaces:TagResource", "workspaces:UntagResource", "workspaces:DescribeWorkspaces",
+                "route53:ListTagsForResource", "route53:TagResource", "route53:UntagResource",
+                "msk:TagResource", "msk:UntagResource"
+            ]
         ))
 
         # create lambda function
         tagging_function = _lambda.Function(self, "resource_tagging_automation_function",
-                                    runtime=_lambda.Runtime.PYTHON_3_10,
-                                    memory_size=128,
-                                    timeout=Duration.seconds(600),
-                                    handler="lambda-handler.main",
-                                    code=_lambda.Code.from_asset("./lambda"),
-                                    function_name="resource-tagging-automation-function",
-                                    role=lambda_role,
-                                    environment={
-                                        "tags": tags.value_as_string,
-                                        "identityRecording": identityRecording.value_as_string
-                                    }
-                        )
+            runtime=_lambda.Runtime.PYTHON_3_10,
+            memory_size=128,
+            timeout=Duration.seconds(600),
+            handler="lambda-handler.main",
+            code=_lambda.Code.from_asset("./lambda"),
+            function_name="resource-tagging-automation-function",
+            role=lambda_role,
+            environment={
+                "tags": tags.value_as_string,
+                "identityRecording": identityRecording.value_as_string
+            }
+        )
 
+        # Define event rule for resource creation events
         _eventRule = _events.Rule(self, "resource-tagging-automation-rule",
-                        event_pattern=_events.EventPattern(
-                            source=["aws.ec2", "aws.elasticloadbalancing", "aws.rds", "aws.lambda", "aws.s3", "aws.dynamodb", "aws.elasticfilesystem", "aws.es", "aws.sqs", "aws.sns", "aws.kms", "aws.elasticache", "aws.gamelift"],
-                            detail_type=["AWS API Call via CloudTrail"],
-                            detail={
-                                "eventSource": ["ec2.amazonaws.com", "elasticloadbalancing.amazonaws.com", "s3.amazonaws.com", "rds.amazonaws.com", "lambda.amazonaws.com", "dynamodb.amazonaws.com", "elasticfilesystem.amazonaws.com", "es.amazonaws.com", "sqs.amazonaws.com", "sns.amazonaws.com", "kms.amazonaws.com", "elasticache.amazonaws.com", "gamelift.amazonaws.com"],
-                                "eventName": ["RunInstances", "CreateFunction20150331", "CreateBucket", "CreateDBInstance", "CreateTable", "CreateVolume", "CreateLoadBalancer", "CreateMountTarget", "CreateDomain", "CreateQueue", "CreateTopic", "CreateKey", "CreateReplicationGroup", "CreateCacheCluster", "ModifyReplicationGroupShardConfiguration", "CreateFleet"]
-                            }
-                        )
-                    )
+            event_pattern=_events.EventPattern(
+                source=["aws.ec2", "aws.elasticloadbalancing", "aws.rds", "aws.lambda", "aws.s3", 
+                        "aws.dynamodb", "aws.elasticfilesystem", "aws.es", "aws.sqs", "aws.sns", 
+                        "aws.kms", "aws.elasticache", "aws.gamelift", "aws.msk", "aws.route53"],
+                detail_type=["AWS API Call via CloudTrail"],
+                detail={
+                    "eventSource": [
+                        "ec2.amazonaws.com", "elasticloadbalancing.amazonaws.com", "s3.amazonaws.com", 
+                        "rds.amazonaws.com", "lambda.amazonaws.com", "dynamodb.amazonaws.com", 
+                        "elasticfilesystem.amazonaws.com", "es.amazonaws.com", "sqs.amazonaws.com", 
+                        "sns.amazonaws.com", "kms.amazonaws.com", "elasticache.amazonaws.com", 
+                        "gamelift.amazonaws.com", "kafka.amazonaws.com", "route53.amazonaws.com"
+                    ],
+                    "eventName": [
+                        "RunInstances", "CreateFunction20150331", "CreateBucket", "CreateDBInstance", 
+                        "CreateTable", "CreateVolume", "CreateLoadBalancer", "CreateMountTarget", 
+                        "CreateDomain", "CreateQueue", "CreateTopic", "CreateKey", "CreateReplicationGroup", 
+                        "CreateCacheCluster", "ModifyReplicationGroupShardConfiguration", "CreateFleet",
+                        "CreateNatGateway", "CreateSubnet", "CreateVpc", "CreateRoute", "CreateHostedZone", 
+                        "CreateCluster"
+                    ]
+                }
+            )
+        )
 
+        # Add Lambda function as the target for the event rule
         _eventRule.add_target(_targets.LambdaFunction(tagging_function, retry_attempts=2))
