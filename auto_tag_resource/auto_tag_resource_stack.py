@@ -79,25 +79,18 @@ class AutoTagResourceStack(Stack):
         _eventRule = _events.Rule(self, "resource-tagging-automation-rule",
             event_pattern=_events.EventPattern(
                 source=["aws.ec2", "aws.elasticloadbalancing", "aws.rds", "aws.lambda", "aws.s3", 
-                        "aws.dynamodb", "aws.elasticfilesystem", "aws.es", "aws.sqs", "aws.sns", 
-                        "aws.kms", "aws.elasticache", "aws.gamelift", "aws.msk", "aws.route53"],
+                        "aws.dynamodb", "aws.elasticfilesystem", "aws.es", "aws.sqs", "aws.sns", "aws.eks",
+                        "aws.kms", "aws.elasticache", "aws.gamelift", "aws.msk", "aws.route53","aws.workspaces"],
                 detail_type=["AWS API Call via CloudTrail"],
                 detail={
                     "eventSource": [
                         "ec2.amazonaws.com", "elasticloadbalancing.amazonaws.com", "s3.amazonaws.com", 
-                        "rds.amazonaws.com", "lambda.amazonaws.com", "dynamodb.amazonaws.com", 
-                        "elasticfilesystem.amazonaws.com", "es.amazonaws.com", "sqs.amazonaws.com", 
-                        "sns.amazonaws.com", "kms.amazonaws.com", "elasticache.amazonaws.com", 
+                        "rds.amazonaws.com", "lambda.amazonaws.com", "dynamodb.amazonaws.com", "eks.amazonaws.com",
+                        "elasticfilesystem.amazonaws.com", "es.amazonaws.com", "sqs.amazonaws.com", "skylight.amazonaws.com",
+                        "sns.amazonaws.com", "kms.amazonaws.com", "elasticache.amazonaws.com", "workspaces.amazonaws.com",
                         "gamelift.amazonaws.com", "kafka.amazonaws.com", "route53.amazonaws.com"
                     ],
-                    "eventName": [
-                        "RunInstances", "CreateFunction20150331", "CreateBucket", "CreateDBInstance", 
-                        "CreateTable", "CreateVolume", "CreateLoadBalancer", "CreateMountTarget", 
-                        "CreateDomain", "CreateQueue", "CreateTopic", "CreateKey", "CreateReplicationGroup", 
-                        "CreateCacheCluster", "ModifyReplicationGroupShardConfiguration", "CreateFleet",
-                        "CreateNatGateway", "CreateSubnet", "CreateVpc", "CreateRoute", "CreateHostedZone", 
-                        "CreateCluster"
-                    ]
+                    "eventName": ["RunInstances", "CreateFunction20150331", "CreateBucket", "DeregisterWorkspaceDirectory", "CreateDBInstance", "workspaceId", "CreateDirectory", "CreateTable", "CreateVolume", "CreateLoadBalancer", "CreateMountTarget", "CreateDomain", "CreateQueue", "CreateTopic", "CreateKey", "CreateVpc", "CreateInternetGateway", "CreateNatGateway", "AllocateAddress", "CreateVpcEndpoint", "CreateTransitGateway", "CreateReplicationInstance", "CreateReplicationGroup", "CreateCluster", "ModifyCluster", "CreateWorkspaces", "CreateHostedZone", "ChangeResourceRecordSets", "CreateServerlessCache", "CreateCacheCluster", "CreateReplicationGroup", "CopyServerlessCacheSnapshot", "CopySnapshot", "CreateCacheParameterGroup", "CreateCacheSecurityGroup", "CreateCacheSubnetGroup", "CreateServerlessCacheSnapshot", "CreateSnapshot", "CreateUserGroup", "CreateUser", "PurchaseReservedCacheNodesOffering", "CreateRecordSet", "CreateInboundEndpoint", "CreateHostedZone", "CreateCluster", "UpdateCluster", "DeleteCluster", "CreateStream", "UpdateStream", "DeleteStream", "CreateWorkspace", "TerminateWorkspace", "CreateVpcPeeringConnection", "DeleteVpcPeeringConnection", "CreateHealthCheck", "CreateTags", "UpdateHealthCheck", "DeleteHealthCheck"]
                 }
             )
         )
