@@ -1,7 +1,8 @@
-import boto3
 import os
 import json
-import time 
+import time
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
 def check_nat_gateway_status(region, nat_gateway_id):
     """Polls the NAT Gateway status to check if it is in a 'available' state."""
@@ -394,109 +395,173 @@ def aws_es(event):
         arnList.append(event['detail']['responseElements']['domainStatus']['aRN'])
         return arnList
 
-def aws_resources(event):
-    arn_list = []
-    
-    # Initialize AWS clients
-    msk_client = boto3.client('kafka', region_name=event['region'])
-    route53_client = boto3.client('route53', region_name=event['region'])
-    workspaces_client = boto3.client('workspaces', region_name=event['region'])
-    
-    # Retrieve tags from environment variable and parse them
-    tags_env = os.getenv('tags', '{}')
-    tags = json.loads(tags_env)  # Convert string to dictionary
-    tag_migrated_value = tags.get('map-migrated', 'DefaultMigration')
-    
-    # Handle MSK events (tag MSK clusters)
-    if event.get('detail', {}).get('eventName') == 'CreateCluster':
-        try:
-            # Extract ARN of the MSK cluster
-            msk_arn = event['detail']['responseElements']['clusterArn']
-            arn_list.append(msk_arn)
+def check_msk_cluster_status(region, cluster_arn):
+    msk_client = boto3.client('kafka', region_name=region)
+    try:
+        response = msk_client.describe_cluster(ClusterArn=cluster_arn)
+        status = response['ClusterInfo']['State']
+        return status
+    except Exception as e:
+        print(f"Error checking MSK cluster status: {e}")
+        return None
 
-            # Tag the MSK cluster
-            if msk_arn:
-                msk_client.tag_resource(
-                    ResourceArn=msk_arn,
-                    Tags=[{'Key': 'map-migrated', 'Value': tag_migrated_value}]
-                )
-                print(f"Successfully tagged MSK cluster: {msk_arn} with map-migrated: {tag_migrated_value}")
+def aws_kafka(event):
+    arnList = []
+
+    # Get account and region details
+    _account = os.getenv('AWS_ACCOUNT_ID')
+    _region = os.getenv('AWS_REGION')
+
+    # Initialize the MSK client
+    msk_client = boto3.client('kafka', region_name=_region)
+
+    # Check for MSK cluster creation event
+    if event['detail']['eventName'] == 'CreateCluster':
+        print("Processing new MSK Cluster...")
+
+        # Extract the Cluster ARN
+        try:
+            cluster_arn = event['detail']['responseElements']['ClusterArn']
+            arnList.append(cluster_arn)
+
+            # Optionally, check the status of the cluster
+            retries = 5
+            while retries > 0:
+                print(f"Retrying cluster status check... {retries} attempts left.")
+                time.sleep(10)  # Delay before retrying
+                status = check_msk_cluster_status(_region, cluster_arn)
+                if status == 'ACTIVE':
+                    print(f"MSK Cluster {cluster_arn} is now active.")
+                    break
+                retries -= 1
+            if retries == 0:
+                print(f"Failed to verify MSK Cluster status after retries.")
+        except KeyError as e:
+            print(f"Event missing expected fields for MSK cluster: {e}")
+            return arnList
+        except Exception as e:
+            print(f"Error processing MSK cluster creation: {e}")
+            return arnList
+
+    return arnList
+
+
+def aws_workspaces(event):
+    # 创建 AWS 客户端
+    wsclient = boto3.client('workspaces')  # WorkSpaces 客户端
+    dsclient = boto3.client('ds')  # Directory Service 客户端
+    resource_group_client = boto3.client('resourcegroupstaggingapi')  # 资源分组标记 API 客户端
+
+    arnList = []  # 用于存储 ARN 列表
+    _region = event['region']  # 获取事件中的 AWS 区域
+    _account = event['account']  # 获取事件中的 AWS 账户 ID
+
+    # 从环境变量获取标签信息
+    try:
+        tags_env = os.getenv('tags', '{}')
+        tags = json.loads(tags_env)
+        tag_key = 'map-migrated'
+        tag_value = tags.get('map-migrated', 'DefaultMigration')
+        print(f"从环境变量获取的标签: {tag_key}={tag_value}")
+    except (json.JSONDecodeError, TypeError) as e:
+        print(f"解析 'tags' 环境变量时出错: {e}")
+        tag_key = 'map-migrated'
+        tag_value = 'DefaultMigration'
+    # 获取所有目录列表
+    try:
+        directories = []
+        next_token = None
+
+        while True:
+            if next_token:
+                response = dsclient.describe_directories(NextToken=next_token)
             else:
-                print(f"MSK ARN is missing in the event: {event}")
-        except KeyError as e:
-            print(f"Error extracting ARN or missing key metadata in event: {e}")
-        except Exception as e:
-            print(f"An error occurred while processing the MSK event: {e}")
-    
-    # Handle Route 53 events (tag Hosted Zones or Record Sets)
-    elif event.get('detail', {}).get('eventName') in ['CreateHostedZone', 'CreateRecordSet']:
+                response = dsclient.describe_directories()
+
+            directories.extend(response['DirectoryDescriptions'])
+            next_token = response.get('NextToken')
+            if not next_token:
+                break
+    except Exception as e:
+        print(f"获取 WorkSpaces 目录时出错: {e}")
+        return {"statusCode": 500, "body": f"Error: {e}"}
+
+    # 遍历所有目录，检查是否需要添加标签
+    for directory in directories:
+        directory_id = directory['DirectoryId']
+        directory_name = directory['Name']
+        print(f"正在检查目录 {directory_id} ({directory_name})")
+
+
         try:
-            if event['detail']['eventName'] == 'CreateHostedZone':
-                hosted_zone_id = event['detail']['responseElements']['hostedZone']['Id']
-                arn_list.append(hosted_zone_id)
-
-                # Tag the hosted zone
-                if hosted_zone_id:
-                    route53_client.tag_resource(
-                        ResourceType='hostedzone',
-                        ResourceId=hosted_zone_id,
-                        Tags=[{'Key': 'map-migrated', 'Value': tag_migrated_value}]
-                    )
-                    print(f"Successfully tagged Route 53 Hosted Zone: {hosted_zone_id} with map-migrated: {tag_migrated_value}")
-            
-            elif event['detail']['eventName'] == 'CreateRecordSet':
-                record_set_id = event['detail']['responseElements']['changeInfo']['id']
-                arn_list.append(record_set_id)
-
-                # Tag the record set (if applicable)
-                if record_set_id:
-                    route53_client.tag_resource(
-                        ResourceType='recordset',
-                        ResourceId=record_set_id,
-                        Tags=[{'Key': 'map-migrated', 'Value': tag_migrated_value}]
-                    )
-                    print(f"Successfully tagged Route 53 Record Set: {record_set_id} with map-migrated: {tag_migrated_value}")
-        
-        except KeyError as e:
-            print(f"Error extracting ARN or missing key metadata in event: {e}")
+            # 直接调用 ds.add_tags_to_resource API 为目录打标签
+            response = dsclient.add_tags_to_resource(
+                ResourceId=directory_id,
+                Tags=[{'Key': tag_key, 'Value': tag_value}]  # 标签是列表格式
+            )
+            print(f"成功为目录 {directory_id} 添加标签: {response}")
         except Exception as e:
-            print(f"An error occurred while processing the Route 53 event: {e}")
-    
-    # Handle Workspaces events (tag Workspaces or Directory)
-    elif event.get('detail', {}).get('eventName') in ['CreateWorkspace', 'CreateWorkspaceDirectory']:
-        try:
-            if event['detail']['eventName'] == 'CreateWorkspace':
-                # Extract Workspace ID
-                workspace_id = event['detail']['responseElements']['workspaceId']
-                arn_list.append(workspace_id)
+            print(f"为目录 {directory_id} 添加标签时出错: {e}")
+    else:
+        print("目录 ID 未找到，无法为目录添加标签")
+   
 
-                # Tag the workspace
-                if workspace_id:
-                    workspaces_client.tag_resource(
+    # 获取所有 WorkSpaces 实例
+    try:
+        workspaces = []
+        next_token = None
+
+        while True:
+            if next_token:
+                response = wsclient.describe_workspaces(NextToken=next_token)
+            else:
+                response = wsclient.describe_workspaces()
+
+            workspaces.extend(response['Workspaces'])
+            next_token = response.get('NextToken')
+            if not next_token:
+                break
+    except Exception as e:
+        print(f"获取 WorkSpaces 实例时出错: {e}")
+        return {"statusCode": 500, "body": f"Error: {e}"}
+
+    # 为 WorkSpaces 实例添加标签，进行重试
+    for workspace in workspaces:
+        workspace_id = workspace['WorkspaceId']
+        print(f"正在处理 WorkSpace 实例 {workspace_id}")
+
+        retries = 3
+        success = False
+
+        while retries > 0 and not success:
+            try:
+                # 获取当前 WorkSpace 标签
+                response = wsclient.describe_tags(ResourceId=workspace_id)
+                workspace_tags = response.get('TagList', [])
+                print(f"WorkSpace {workspace_id} 当前标签: {workspace_tags}")
+
+                # 检查标签是否已经存在
+                if not any(tag['Key'] == tag_key for tag in workspace_tags):
+                    wsclient.create_tags(
                         ResourceId=workspace_id,
-                        Tags=[{'Key': 'map-migrated', 'Value': tag_migrated_value}]
+                        Tags=[{'Key': tag_key, 'Value': tag_value}]
                     )
-                    print(f"Successfully tagged Workspace: {workspace_id} with map-migrated: {tag_migrated_value}")
+                    print(f"已为 WorkSpace {workspace_id} 添加 '{tag_key}' 标签")
+                else:
+                    print(f"WorkSpace {workspace_id} 已有 '{tag_key}' 标签")
+                success = True
+            except Exception as e:
+                print(f"为 WorkSpace {workspace_id} 添加标签时出错: {e}")
+                retries -= 1
+                if retries > 0:
+                    print(f"重试剩余次数: {retries}")
+                    time.sleep(5)
+                else:
+                    print(f"WorkSpace {workspace_id} 标签添加失败，已达到最大重试次数")
 
-            elif event['detail']['eventName'] == 'CreateWorkspaceDirectory':
-                # Extract Directory ID
-                directory_id = event['detail']['responseElements']['directoryId']
-                arn_list.append(directory_id)
+    print("标签处理完成")
+    return {"statusCode": 200, "body": "所有目录和 WorkSpaces 实例的标签处理完成"}
 
-                # Tag the workspace directory
-                if directory_id:
-                    workspaces_client.tag_resource(
-                        ResourceId=directory_id,
-                        Tags=[{'Key': 'map-migrated', 'Value': tag_migrated_value}]
-                    )
-                    print(f"Successfully tagged Workspace Directory: {directory_id} with map-migrated: {tag_migrated_value}")
-
-        except KeyError as e:
-            print(f"Error extracting Workspace or Directory ID in event: {e}")
-        except Exception as e:
-            print(f"An error occurred while processing the Workspaces event: {e}")
-    
-    return arn_list
 
 def main(event, context):
     print("Input event is: ")
