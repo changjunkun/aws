@@ -52,11 +52,13 @@ class AutoTagResourceStack(Stack):
                 "cloudformation:DescribeStacks", "cloudformation:ListStackResources", 
                 "elasticache:DescribeReplicationGroups", "elasticache:DescribeCacheClusters", 
                 "elasticache:AddTagsToResource", "resource-groups:*", 
-                "GameLift:TagResource", "kafka:TagResource", "kafka:UntagResource",
+                "GameLift:TagResource", "kafka:TagResource", "kafka:UntagResource","kafka:List*","kafka:Describe*",
                 "docdb:ListTagsForResource", "docdb:AddTagsToResource", "docdb:RemoveTagsFromResource", 
-                "workspaces:TagResource", "workspaces:UntagResource", "workspaces:DescribeWorkspaces",
+                "workspaces:TagResource", "workspaces:UntagResource", "workspaces:DescribeWorkspaces", "workspaces:Describe*", "workspaces:List*",
                 "route53:ListTagsForResource", "route53:TagResource", "route53:UntagResource",
-                "msk:TagResource", "msk:UntagResource"
+                "msk:TagResource", "msk:UntagResource", "ec2:DescribeNetworkInterfaces",
+                "ds:Describe*", "ds:ListTagsForResource", "ds:AddTagsToResource", "ds:CreateTags",
+                "workspaces:CreateTags"
             ]
         ))
 
