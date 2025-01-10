@@ -51,12 +51,12 @@ class AutoTagResourceStack(Stack):
                 "tag:TagResources", "tag:UntagResources", 
                 "cloudformation:DescribeStacks", "cloudformation:ListStackResources", 
                 "elasticache:DescribeReplicationGroups", "elasticache:DescribeCacheClusters", 
-                "elasticache:AddTagsToResource", "resource-groups:*", 
+                "elasticache:AddTagsToResource", "elasticache:Describe*", 
                 "GameLift:TagResource", "kafka:TagResource", "kafka:UntagResource",
                 "docdb:ListTagsForResource", "docdb:AddTagsToResource", "docdb:RemoveTagsFromResource", 
-                "workspaces:TagResource", "workspaces:UntagResource", "workspaces:DescribeWorkspaces",
+                "workspaces:TagResource", "workspaces:*","workspaces:UntagResource", "workspaces:DescribeWorkspaces",
                 "route53:ListTagsForResource", "route53:TagResource", "route53:UntagResource",
-                "msk:TagResource", "msk:UntagResource"
+                "msk:TagResource", "msk:UntagResource", "kafka:*", "resource-groups:*", "kafka:AddTagsToResource", "kafka:*", "ds:*"
             ]
         ))
 
@@ -80,7 +80,7 @@ class AutoTagResourceStack(Stack):
             event_pattern=_events.EventPattern(
                 source=["aws.ec2", "aws.elasticloadbalancing", "aws.rds", "aws.lambda", "aws.s3", 
                         "aws.dynamodb", "aws.elasticfilesystem", "aws.es", "aws.sqs", "aws.sns", 
-                        "aws.kms", "aws.elasticache", "aws.gamelift", "aws.msk", "aws.route53"],
+                        "aws.kms", "aws.elasticache", "aws.gamelift", "aws.msk", "aws.route53", "aws.workspaces", "aws.eks"],
                 detail_type=["AWS API Call via CloudTrail"],
                 detail={
                     "eventSource": [
@@ -88,7 +88,7 @@ class AutoTagResourceStack(Stack):
                         "rds.amazonaws.com", "lambda.amazonaws.com", "dynamodb.amazonaws.com", 
                         "elasticfilesystem.amazonaws.com", "es.amazonaws.com", "sqs.amazonaws.com", 
                         "sns.amazonaws.com", "kms.amazonaws.com", "elasticache.amazonaws.com", 
-                        "gamelift.amazonaws.com", "kafka.amazonaws.com", "route53.amazonaws.com"
+                        "gamelift.amazonaws.com", "dms.amazonaws.com", "kafka.amazonaws.com", "route53.amazonaws.com", "eks.amazonaws.com", "workspaces.amazonaws.com"
                     ],
                     "eventName": [
                         "RunInstances", "CreateFunction20150331", "CreateBucket", "CreateDBInstance", 
@@ -96,7 +96,7 @@ class AutoTagResourceStack(Stack):
                         "CreateDomain", "CreateQueue", "CreateTopic", "CreateKey", "CreateReplicationGroup", 
                         "CreateCacheCluster", "ModifyReplicationGroupShardConfiguration", "CreateFleet",
                         "CreateNatGateway", "CreateSubnet", "CreateVpc", "CreateRoute", "CreateHostedZone", 
-                        "CreateCluster"
+                        "CreateCluster", "AllocateAddress", "DeregisterWorkspaceDirectory", "workspaceId", "CreateDirectory", "CreateInternetGateway", "CreateVpcEndpoint", "CreateTransitGateway", "CreateReplicationInstance", "CreateReplicationGroup", "ModifyCluster", "CreateWorkspaces", "ChangeResourceRecordSets", "CreateServerlessCache", "CreateCacheCluster", "CreateReplicationGroup", "CopyServerlessCacheSnapshot", "CopySnapshot", "CreateCacheParameterGroup", "CreateCacheSecurityGroup", "CreateCacheSubnetGroup", "CreateServerlessCacheSnapshot", "CreateSnapshot", "CreateUserGroup", "CreateUser", "PurchaseReservedCacheNodesOffering", "CreateRecordSet", "CreateInboundEndpoint", "CreateHostedZone", "UpdateCluster", "CreateStream", "UpdateStream", "CreateWorkspace", "CreateVpcPeeringConnection", "DeleteVpcPeeringConnection", "CreateTags"
                     ]
                 }
             )

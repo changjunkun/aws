@@ -1,8 +1,8 @@
 
 #!/bin/bash
-regions=$(aws ec2 describe-regions --query "Regions[].RegionName" --output text)
+#regions=$(aws ec2 describe-regions --query "Regions[].RegionName" --output text)
 #指定region
-#regions='us-east-1 us-west-2'
+regions='eu-west-1'
 # 循环遍历每个区域
 for region in $regions; do
   # 导出 CDK_REGION 环境变量

@@ -1,0 +1,107 @@
+{
+  "version": "36.3.0",
+  "artifacts": {
+    "AutoTagResourceStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "AutoTagResourceStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "AutoTagResourceStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://198480468982/eu-west-2",
+      "properties": {
+        "templateFile": "AutoTagResourceStack.template.json",
+        "terminationProtection": false,
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::198480468982:role/cdk-hnb659fds-deploy-role-198480468982-eu-west-2",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::198480468982:role/cdk-hnb659fds-cfn-exec-role-198480468982-eu-west-2",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-198480468982-eu-west-2/a7327a91d4289177335a4c46f78cc2d005c0133cbeb341f6703ae42e1c72138a.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "AutoTagResourceStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::198480468982:role/cdk-hnb659fds-lookup-role-198480468982-eu-west-2",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "AutoTagResourceStack.assets"
+      ],
+      "metadata": {
+        "/AutoTagResourceStack/tags": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "tags"
+          }
+        ],
+        "/AutoTagResourceStack/identityRecording": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "identityRecording"
+          }
+        ],
+        "/AutoTagResourceStack/lambda_role/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "lambdarole3F9471F6"
+          }
+        ],
+        "/AutoTagResourceStack/lambda_role/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "lambdaroleDefaultPolicyCADF8B22"
+          }
+        ],
+        "/AutoTagResourceStack/resource_tagging_automation_function/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "resourcetaggingautomationfunction14098B44"
+          }
+        ],
+        "/AutoTagResourceStack/resource-tagging-automation-rule/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "resourcetaggingautomationrule320D34CC"
+          }
+        ],
+        "/AutoTagResourceStack/resource-tagging-automation-rule/AllowEventRuleAutoTagResourceStackresourcetaggingautomationfunctionEF666F1D": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "resourcetaggingautomationruleAllowEventRuleAutoTagResourceStackresourcetaggingautomationfunctionEF666F1D7148A238"
+          }
+        ],
+        "/AutoTagResourceStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/AutoTagResourceStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/AutoTagResourceStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "AutoTagResourceStack"
+    },
+    "Tree": {
+      "type": "cdk:tree",
+      "properties": {
+        "file": "tree.json"
+      }
+    }
+  }
+}
